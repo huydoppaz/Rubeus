@@ -2,11 +2,8 @@ name: Build and Publish .NET Project
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    tags:
+      - '*' # Kích hoạt khi có bất kỳ tag nào được push
 
 jobs:
   build-and-publish:
@@ -21,7 +18,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x' # Thay đổi phiên bản .NET nếu cần (ví dụ: 6.0.x, 7.0.x)
+        dotnet-version: '8.0.x' # Thay đổi phiên bản .NET nếu cần
 
     # Bước 3: Khôi phục dependencies
     - name: Restore dependencies
@@ -46,14 +43,13 @@ jobs:
         name: dotnet-app
         path: release.zip
 
-    # Bước 8: Tạo GitHub Release (chỉ khi push vào main)
+    # Bước 8: Tạo GitHub Release
     - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        body: Automated release for commit ${{ github.sha }}
+        tag_name: ${{ github.ref_name }} # Sử dụng tên tag hiện tại
+        name: Release ${{ github.ref_name }}
+        body: Automated release for tag ${{ github.ref_name }}
         draft: false
         prerelease: false
         files: release.zip
