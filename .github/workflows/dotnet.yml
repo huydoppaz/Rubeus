@@ -1,0 +1,61 @@
+name: Build and Publish .NET Project
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Bước 1: Checkout mã nguồn
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Bước 2: Thiết lập .NET SDK
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x' # Thay đổi phiên bản .NET nếu cần (ví dụ: 6.0.x, 7.0.x)
+
+    # Bước 3: Khôi phục dependencies
+    - name: Restore dependencies
+      run: dotnet restore
+
+    # Bước 4: Build dự án
+    - name: Build project
+      run: dotnet build --configuration Release --no-restore
+
+    # Bước 5: Publish dự án
+    - name: Publish project
+      run: dotnet publish -c Release -o ./publish --no-build
+
+    # Bước 6: Nén artifact thành file zip
+    - name: Zip publish folder
+      run: zip -r release.zip ./publish
+
+    # Bước 7: Tải artifact lên
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: dotnet-app
+        path: release.zip
+
+    # Bước 8: Tạo GitHub Release (chỉ khi push vào main)
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        body: Automated release for commit ${{ github.sha }}
+        draft: false
+        prerelease: false
+        files: release.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
