@@ -1,18 +1,13 @@
-name: Build and Publish .NET Project
+name: Build and Publish .NET Framework Project
 
 on:
   push:
     branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
+      - master # Kích hoạt mỗi khi có commit vào branch master
 
 jobs:
   build-and-publish:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # Sử dụng runner Windows để hỗ trợ .NET Framework
 
     steps:
     # Bước 1: Checkout mã nguồn
@@ -23,37 +18,45 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x' # Thay đổi phiên bản .NET nếu cần (ví dụ: 6.0.x, 7.0.x)
+        dotnet-version: '8.0.x' # Cần để hỗ trợ các công cụ dotnet CLI
 
-    # Bước 3: Khôi phục dependencies
+    # Bước 3: Cài đặt .NET Framework Developer Pack
+    - name: Install .NET Framework 4.0 Developer Pack
+      run: |
+        choco install netfx-4.0.3-devpack -y
+      env:
+        ChocolateyUseWindowsCompression: 'false'
+
+    # Bước 4: Khôi phục dependencies
     - name: Restore dependencies
       run: dotnet restore
 
-    # Bước 4: Build dự án
+    # Bước 5: Build dự án
     - name: Build project
       run: dotnet build --configuration Release --no-restore
+      env:
+        TargetFramework: net40 # Chỉ định framework nếu cần
 
-    # Bước 5: Publish dự án
+    # Bước 6: Publish dự án
     - name: Publish project
       run: dotnet publish -c Release -o ./publish --no-build
 
-    # Bước 6: Nén artifact thành file zip
+    # Bước 7: Nén artifact thành file zip
     - name: Zip publish folder
-      run: zip -r release.zip ./publish
+      run: Compress-Archive -Path ./publish/* -DestinationPath release.zip
 
-    # Bước 7: Tải artifact lên
+    # Bước 8: Tải artifact lên
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: dotnet-app
         path: release.zip
 
-    # Bước 8: Tạo GitHub Release (chỉ khi push vào main)
+    # Bước 9: Tạo GitHub Release
     - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ github.run_number }}
+        tag_name: v${{ github.run_number }} # Sử dụng run_number làm tag
         name: Release v${{ github.run_number }}
         body: Automated release for commit ${{ github.sha }}
         draft: false
